@@ -3,7 +3,7 @@ import { DATA_KEY } from "@/lib/types";
 import { createMemoryStorage } from "@/test/memory-storage";
 import { expect, it } from "vitest";
 
-it("saves the sample queue and reads it back", () => {
+it("saves the initial queue and reads it back", () => {
   const storage = createMemoryStorage();
   const repository = createLocalStorageRepository(storage);
   const first = repository.load();
@@ -12,7 +12,7 @@ it("saves the sample queue and reads it back", () => {
   expect(repository.load().venue.name).toBe("Night League");
 });
 
-it("replaces a broken save with the sample queue", () => {
+it("replaces a broken save with a fresh venue", () => {
   const storage = createMemoryStorage({ [DATA_KEY]: "{not json" });
   const repository = createLocalStorageRepository(storage);
   expect(repository.load().venue.name).toBe("Riverside Courts");

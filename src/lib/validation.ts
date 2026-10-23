@@ -127,10 +127,21 @@ const appStateSchemaV1 = z.object({
 
 const BACKUP_ERROR = "This file is not a SportQueue backup. Use a file exported from SportQueue.";
 
+/** Example games bundled in older builds — never treated as the user's history. */
+const BUNDLED_DEMO_ENTRY_IDS = new Set([
+  "entry-legacy",
+  "entry-sam",
+  "entry-alex",
+  "entry-chris",
+  "entry-jordan",
+  "entry-priya",
+  "entry-northside",
+]);
+
 export function sanitizeAppState(state: AppState): AppState {
-  const entries = state.entries.map((entry) =>
-    isRetiredSportId(entry.sportId) ? { ...entry, sportId: ARCHIVED_SPORT_ID } : entry,
-  );
+  const entries = state.entries
+    .filter((entry) => !BUNDLED_DEMO_ENTRY_IDS.has(entry.id))
+    .map((entry) => (isRetiredSportId(entry.sportId) ? { ...entry, sportId: ARCHIVED_SPORT_ID } : entry));
 
   let sports = manageableSports(state.sports);
   if (entries.some((entry) => entry.sportId === ARCHIVED_SPORT_ID) && !sports.some((sport) => sport.id === ARCHIVED_SPORT_ID)) {

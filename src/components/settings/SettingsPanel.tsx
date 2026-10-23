@@ -182,9 +182,9 @@ export function SettingsPanel() {
       </section>
 
       <section className="rounded-3xl bg-white p-4">
-        <h2 className="text-lg font-extrabold text-pine">Sample data</h2>
+        <h2 className="text-lg font-extrabold text-pine">Start fresh</h2>
         <p className="mt-2 text-sm leading-6 text-muted">
-          Put back the sample venue, players, and courts. This replaces what is currently saved in this browser.
+          Clears players, queue, session, and game history in this browser. Venue name and courts reset to defaults. Export a backup first if you need a copy.
         </p>
         <Button
           variant="danger"
@@ -192,19 +192,19 @@ export function SettingsPanel() {
           className="mt-3"
           onClick={() =>
             setConfirm({
-              title: "Reset sample data?",
-              body: "The queue in this browser will be replaced with the sample players and courts.",
-              confirmLabel: "Reset sample data",
+              title: "Clear everything on this device?",
+              body: "Players, check-ins, queue, and history will be removed from this browser. This cannot be undone unless you have a backup file.",
+              confirmLabel: "Clear local data",
               danger: true,
               action: () => {
                 reset();
                 setError(null);
-                setNotice("Sample data restored.");
+                setNotice("Local data cleared.");
               },
             })
           }
         >
-          Reset sample data
+          Clear local data
         </Button>
       </section>
 

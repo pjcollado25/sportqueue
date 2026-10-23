@@ -37,7 +37,7 @@ describe("queue rules", () => {
     if (!joined.ok) return;
     const entry = joined.state.entries.find((item) => item.displayName === "Nia");
     expect(entry).toBeTruthy();
-    expect(queuePosition(joined.state, entry!.id)).toBe(3);
+    expect(queuePosition(joined.state, entry!.id)).toBe(1);
   });
 
   it("gives the first tennis player the next place", () => {
@@ -186,14 +186,55 @@ describe("queue rules", () => {
     expect(duplicate.ok).toBe(false);
   });
 
-  it("keeps archived history but blocks basketball from new play", () => {
-    const state = createDemoState();
-    expect(state.sports.some((sport) => sport.id === "basketball")).toBe(false);
-    expect(state.entries.some((entry) => entry.sportId === "archived")).toBe(true);
-    expect(joinQueue(state, { ...joinBase, sportId: "basketball", format: "team", displayName: "Hoop", ownerToken: "x" }).ok).toBe(
+  it("migrates old basketball history and blocks basketball from new play", () => {
+    const base = createDemoState();
+    const migrated = parseAppState({
+      ...base,
+      sports: [
+        ...base.sports,
+        {
+          id: "basketball",
+          name: "Basketball",
+          icon: "🏀",
+          enabled: false,
+          formats: ["team"],
+          defaultGroupSize: { team: 5 },
+          defaultMatchMinutes: 40,
+          builtIn: true,
+        },
+      ],
+      entries: [
+        {
+          id: "entry-old-bball",
+          sportId: "basketball",
+          format: "team",
+          displayName: "Alumni",
+          players: ["Alumni"],
+          courtPreferenceId: null,
+          status: "completed",
+          joinedAt: new Date().toISOString(),
+          endedAt: new Date().toISOString(),
+          courtId: "court-1",
+          ownerToken: null,
+          winnerSide: "A",
+        },
+      ],
+    });
+    expect(migrated.ok).toBe(true);
+    if (!migrated.ok) return;
+    expect(migrated.state.entries[0]?.sportId).toBe("archived");
+    expect(joinQueue(migrated.state, { ...joinBase, sportId: "basketball", format: "team", displayName: "Hoop", ownerToken: "x" }).ok).toBe(
       false,
     );
-    expect(addSkillPairs(state, { sportId: "basketball", players: [{ name: "Ana", skillLevel: "intermediate", checkInOrder: 1, sitOutCount: 0 }, { name: "Ben", skillLevel: "intermediate", checkInOrder: 2, sitOutCount: 0 }] }).ok).toBe(false);
+    expect(
+      addSkillPairs(migrated.state, {
+        sportId: "basketball",
+        players: [
+          { name: "Ana", skillLevel: "intermediate", checkInOrder: 1, sitOutCount: 0 },
+          { name: "Ben", skillLevel: "intermediate", checkInOrder: 2, sitOutCount: 0 },
+        ],
+      }).ok,
+    ).toBe(false);
   });
 
   it("records wins, updates standings, and undoes a result", () => {

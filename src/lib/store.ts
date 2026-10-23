@@ -1,4 +1,4 @@
-import { createDemoState } from "@/lib/defaults";
+import { createInitialState } from "@/lib/defaults";
 import {
   addCourt,
   addSkillPairs,
@@ -297,7 +297,7 @@ export function createQueueStore(repository?: SportQueueRepository): QueueStore 
       return null;
     },
     reset() {
-      commit(createDemoState());
+      commit(createInitialState());
     },
     startSession(input) {
       const current = ensure();

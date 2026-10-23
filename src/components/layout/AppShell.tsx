@@ -67,8 +67,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <div className="mx-auto flex w-full max-w-6xl">
-        <aside className="sticky top-[4.25rem] hidden h-[calc(100dvh-4.25rem)] w-64 shrink-0 overflow-y-auto px-4 py-5 md:block">
-          <nav aria-label="Sections" className="grid gap-1">
+        <aside className="sticky top-[4.25rem] hidden h-[calc(100dvh-4.25rem)] w-64 shrink-0 overflow-y-auto border-r border-line/60 px-4 py-5 md:block">
+          <nav aria-label="Sections" className="grid gap-1 rounded-3xl border border-line/70 bg-white p-2 shadow-sm">
             {[...primaryNav, ...moreNav].map((item) => (
               <NavLink key={item.href} item={item} current={isCurrent(pathname, item.href)} />
             ))}
@@ -166,11 +166,11 @@ function NavLink({ item, current }: { item: NavItem; current: boolean }) {
       href={item.href}
       aria-current={current ? "page" : undefined}
       className={cn(
-        "flex min-h-12 items-center gap-3 rounded-2xl px-3 text-base font-bold",
-        current ? "bg-white/14 text-lime ring-1 ring-white/20" : "text-lime/90 hover:bg-white/10",
+        "flex min-h-12 items-center gap-3 rounded-2xl px-3 text-base font-bold transition-colors",
+        current ? "bg-pine text-lime" : "text-pine hover:bg-foam",
       )}
     >
-      <item.icon aria-hidden size={20} />
+      <item.icon aria-hidden size={20} strokeWidth={current ? 2.5 : 2} />
       {item.label}
     </Link>
   );

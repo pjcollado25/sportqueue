@@ -1,4 +1,4 @@
-import { createDemoState } from "@/lib/defaults";
+import { createInitialState } from "@/lib/defaults";
 import { createId } from "@/lib/ids";
 import type { SportQueueRepository } from "@/lib/repository";
 import { DATA_KEY, TOKEN_KEY } from "@/lib/types";
@@ -9,19 +9,19 @@ export function createLocalStorageRepository(storage: Storage): SportQueueReposi
     load() {
       const raw = storage.getItem(DATA_KEY);
       if (!raw) {
-        const demo = createDemoState();
-        storage.setItem(DATA_KEY, JSON.stringify(demo));
-        return demo;
+        const initial = createInitialState();
+        storage.setItem(DATA_KEY, JSON.stringify(initial));
+        return initial;
       }
       try {
         const parsed = parseAppState(JSON.parse(raw) as unknown);
         if (parsed.ok) return parsed.state;
       } catch {
-        // Replace unreadable data with the sample queue so the phone can keep working.
+        // Replace unreadable data with a blank venue so the phone can keep working.
       }
-      const demo = createDemoState();
-      storage.setItem(DATA_KEY, JSON.stringify(demo));
-      return demo;
+      const initial = createInitialState();
+      storage.setItem(DATA_KEY, JSON.stringify(initial));
+      return initial;
     },
     save(state) {
       storage.setItem(DATA_KEY, JSON.stringify(state));
