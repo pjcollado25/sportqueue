@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { HomeDashboard } from "@/components/home/HomeDashboard";
+import { SessionHub } from "@/components/session/SessionHub";
 
 export const instant = false;
 
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  return <HomeDashboard />;
+  return <SessionHub />;
 }

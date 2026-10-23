@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     default: "SportQueue",
     template: "%s · SportQueue",
   },
-  description: "One queue. Every sport. Join a court queue on this phone.",
+  description: "Run pickleball court sessions on this phone — check-ins, balanced doubles, courts, and rankings.",
   applicationName: "SportQueue",
 };
 

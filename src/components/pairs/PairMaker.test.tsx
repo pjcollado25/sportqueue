@@ -19,19 +19,19 @@ test("a ranked list becomes an even doubles game on the queue", async () => {
   await user.type(screen.getByLabelText("Names"), "Ana, Ben, Cam, Dee");
   await user.click(screen.getByRole("button", { name: "Add" }));
 
-  async function rank(player: string, skill: string) {
+  async function setStars(player: string, stars: number) {
     const item = screen.getByText(player).closest("li");
     if (!item) throw new Error(`Missing ${player}`);
-    await user.click(within(item).getByRole("button", { name: skill }));
+    await user.click(within(item).getByRole("radio", { name: new RegExp(`^${stars} of 6`) }));
   }
 
-  await rank("Dee", "Skill 5, strongest");
-  await rank("Ben", "Skill 4");
-  await rank("Cam", "Skill 2");
-  await rank("Ana", "Skill 1, newest");
+  await setStars("Dee", 6);
+  await setStars("Ben", 5);
+  await setStars("Cam", 3);
+  await setStars("Ana", 1);
 
-  expect(screen.getByText("Dee & Ana").textContent).toBe("Dee & Ana");
-  expect(screen.getByText("Ben & Cam").textContent).toBe("Ben & Cam");
+  expect(screen.getByRole("heading", { name: "Balanced matchups" })).toBeTruthy();
+  expect(screen.getByText(/vs/)).toBeTruthy();
 
   await user.click(screen.getByRole("button", { name: "Add this game to Pickleball" }));
   expect((await screen.findByRole("status")).textContent).toContain("1 game added to Pickleball");

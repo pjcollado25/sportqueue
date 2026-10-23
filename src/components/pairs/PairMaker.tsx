@@ -8,19 +8,26 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/bits";
 import { fieldClass, cn } from "@/lib/cn";
 import { createId } from "@/lib/ids";
+import { SkillLevelPicker } from "@/components/ui/SkillLevelPicker";
+import { playerNameKey, SKILL_LEVELS, type SkillLevel } from "@/lib/skill";
 import { pairLine, pickSkillPairs, type SkillPairing } from "@/lib/pairing";
+import { selectableSports } from "@/lib/selectors";
 
 type DraftPlayer = {
   id: string;
   name: string;
-  skill: number;
+  skillLevel: SkillLevel | null;
+  checkInOrder: number;
+  sitOutCount: number;
   order: number;
 };
 
-const SKILL_LEVELS = [1, 2, 3, 4, 5] as const;
-
 function byRank(players: DraftPlayer[]): DraftPlayer[] {
-  return [...players].sort((a, b) => b.skill - a.skill || a.order - b.order);
+  return [...players].sort((a, b) => {
+    const aw = a.skillLevel ? SKILL_LEVELS.indexOf(a.skillLevel) : -1;
+    const bw = b.skillLevel ? SKILL_LEVELS.indexOf(b.skillLevel) : -1;
+    return bw - aw || a.checkInOrder - b.checkInOrder || a.order - b.order;
+  });
 }
 
 function addedNotice(pairing: SkillPairing, sportName: string): string {
@@ -29,7 +36,7 @@ function addedNotice(pairing: SkillPairing, sportName: string): string {
   else if (pairing.games.length > 1) parts.push(`${pairing.games.length} games added to ${sportName}`);
   else if (pairing.waitingPair) parts.push(`1 pair added to ${sportName}`);
   if (pairing.games.length > 0 && pairing.waitingPair) parts.push("one pair is still waiting for opponents");
-  if (pairing.sittingOut) parts.push(`${pairing.sittingOut} sits out this round`);
+  if (pairing.sittingOut) parts.push(`${pairing.sittingOut} sits out this round (fair rotation)`);
   return `${parts.join(". ")}.`;
 }
 
@@ -50,11 +57,26 @@ export function PairMaker() {
   const [notice, setNotice] = useState<string | null>(null);
   if (!state) return null;
 
-  const sports = state.sports.filter((sport) => sport.enabled && sport.formats.includes("doubles"));
+  const sports = selectableSports(state).filter((sport) => sport.formats.includes("doubles"));
   const selectedId = sports.some((sport) => sport.id === sportId) ? sportId : (sports[0]?.id ?? "");
   const sport = sports.find((item) => item.id === selectedId);
   const ranked = byRank(players);
-  const picked = players.length > 0 ? pickSkillPairs(ranked.map((player) => ({ name: player.name, skill: player.skill }))) : null;
+  const picked =
+    players.length > 0
+      ? pickSkillPairs(
+          ranked.map((player) => ({
+            name: player.name,
+            skillLevel: player.skillLevel,
+            checkInOrder: player.checkInOrder,
+            sitOutCount: player.sitOutCount,
+          })),
+          { partnerHistory: new Set(state.partnerHistory) },
+        )
+      : null;
+
+  function profileForName(raw: string) {
+    return state!.players.find((player) => playerNameKey(player.name) === playerNameKey(raw));
+  }
 
   function addNames(raw: string) {
     const parts = raw
@@ -67,7 +89,7 @@ export function PairMaker() {
       return;
     }
 
-    const seen = new Set(players.map((player) => player.name.toLocaleLowerCase()));
+    const seen = new Set(players.map((player) => playerNameKey(player.name)));
     const next = [...players];
     let order = next.reduce((max, player) => Math.max(max, player.order), 0);
     let problem: string | null = null;
@@ -80,13 +102,21 @@ export function PairMaker() {
         problem = "Use 40 characters or fewer for each name.";
         continue;
       }
-      if (seen.has(part.toLocaleLowerCase())) {
+      if (seen.has(playerNameKey(part))) {
         problem = `${part} is already on the list.`;
         continue;
       }
-      seen.add(part.toLocaleLowerCase());
+      seen.add(playerNameKey(part));
       order += 1;
-      next.push({ id: createId(), name: part, skill: 3, order });
+      const profile = profileForName(part);
+      next.push({
+        id: createId(),
+        name: profile?.name ?? part,
+        skillLevel: profile?.skillLevel ?? null,
+        checkInOrder: profile?.checkInOrder ?? order,
+        sitOutCount: profile?.sitOutCount ?? 0,
+        order,
+      });
     }
 
     if (next.length === players.length) {
@@ -101,8 +131,8 @@ export function PairMaker() {
     setNotice(null);
   }
 
-  function setSkill(id: string, skill: number) {
-    setPlayers((current) => current.map((player) => (player.id === id ? { ...player, skill } : player)));
+  function setSkillLevel(id: string, skillLevel: SkillLevel | null) {
+    setPlayers((current) => current.map((player) => (player.id === id ? { ...player, skillLevel } : player)));
     setNotice(null);
   }
 
@@ -111,7 +141,7 @@ export function PairMaker() {
     const index = ordered.findIndex((player) => player.id === id);
     const target = index + direction;
     if (index < 0 || target < 0 || target >= ordered.length) return;
-    if (ordered[index].skill !== ordered[target].skill) return;
+    if (ordered[index].skillLevel !== ordered[target].skillLevel) return;
     const currentOrder = ordered[index].order;
     const targetOrder = ordered[target].order;
     setPlayers((current) =>
@@ -133,7 +163,7 @@ export function PairMaker() {
     <div className="mx-auto grid w-full max-w-3xl gap-4">
       <PageHeader
         title="Make pairs"
-        description="Add the players, rank each one by skill, and SportQueue will build even doubles."
+        description="Balanced doubles: teams are close in combined skill. Check-in order and wait time decide who sits out — not rating alone."
       />
 
       {sports.length === 0 ? (
@@ -185,7 +215,7 @@ export function PairMaker() {
             </Button>
           </form>
           <p className="text-sm leading-6 text-muted">
-            5 is strongest and 1 is newest. People with the same skill stay in the order you move them. The strongest player is paired with the newest, so each side is close.
+            Skill levels are estimates for open play, not official ratings. Unrated players are balanced toward the middle. With an odd count, whoever sat out least recently waits — not automatically the lowest skill.
           </p>
 
           {error ? (
@@ -220,7 +250,7 @@ export function PairMaker() {
                         <button
                           type="button"
                           aria-label={`Move ${player.name} up`}
-                          disabled={!above || above.skill !== player.skill}
+                          disabled={!above || above.skillLevel !== player.skillLevel}
                           onClick={() => move(player.id, -1)}
                           className="grid h-11 w-11 place-items-center rounded-xl border border-line text-pine disabled:opacity-40"
                         >
@@ -229,7 +259,7 @@ export function PairMaker() {
                         <button
                           type="button"
                           aria-label={`Move ${player.name} down`}
-                          disabled={!below || below.skill !== player.skill}
+                          disabled={!below || below.skillLevel !== player.skillLevel}
                           onClick={() => move(player.id, 1)}
                           className="grid h-11 w-11 place-items-center rounded-xl border border-line text-pine disabled:opacity-40"
                         >
@@ -245,22 +275,12 @@ export function PairMaker() {
                         </button>
                       </div>
                     </div>
-                    <div className="mt-3 flex gap-1" role="group" aria-label={`Skill for ${player.name}`}>
-                      {SKILL_LEVELS.map((level) => (
-                        <button
-                          key={level}
-                          type="button"
-                          aria-pressed={player.skill === level}
-                          aria-label={level === 5 ? "Skill 5, strongest" : level === 1 ? "Skill 1, newest" : `Skill ${level}`}
-                          onClick={() => setSkill(player.id, level)}
-                          className={cn(
-                            "grid h-11 min-w-11 flex-1 place-items-center rounded-xl text-sm font-extrabold",
-                            player.skill === level ? "bg-pine text-white" : "bg-foam text-pine",
-                          )}
-                        >
-                          {level}
-                        </button>
-                      ))}
+                    <div className="mt-3">
+                      <SkillLevelPicker
+                        id={`pair-play-level-${player.id}`}
+                        value={player.skillLevel}
+                        onChange={(level) => setSkillLevel(player.id, level)}
+                      />
                     </div>
                   </li>
                 );
@@ -270,7 +290,7 @@ export function PairMaker() {
 
           {picked?.ok ? (
             <section className="grid gap-2" aria-label="Suggested pairs">
-              <h2 className="text-lg font-extrabold text-pine">Pairs</h2>
+              <h2 className="text-lg font-extrabold text-pine">Balanced matchups</h2>
               {picked.pairing.games.map((game, index) => (
                 <article key={`${game.sideA.players[0]}-${game.sideB.players[0]}`} className="rounded-3xl bg-white p-4">
                   <p className="text-sm font-bold text-muted">Game {index + 1}</p>
@@ -287,7 +307,7 @@ export function PairMaker() {
               ) : null}
               {picked.pairing.sittingOut ? (
                 <p className="rounded-3xl bg-sand px-4 py-3 text-sm font-semibold leading-6 text-clay">
-                  {picked.pairing.sittingOut} sits this round. Raise their skill, or move them up if they share a skill with someone, if they should play instead.
+                  {picked.pairing.sittingOut} sits this round based on fair rotation (fewest recent sit-outs, then check-in order).
                 </p>
               ) : null}
               <Button
@@ -296,7 +316,12 @@ export function PairMaker() {
                   if (!sport || !picked.ok) return;
                   const message = queue.addSkillPairs(
                     sport.id,
-                    ranked.map((player) => ({ name: player.name, skill: player.skill })),
+                    ranked.map((player) => ({
+                      name: player.name,
+                      skillLevel: player.skillLevel,
+                      checkInOrder: player.checkInOrder,
+                      sitOutCount: player.sitOutCount,
+                    })),
                   );
                   if (message) {
                     setError(message);

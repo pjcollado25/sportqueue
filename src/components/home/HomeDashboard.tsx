@@ -4,7 +4,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { useQueue } from "@/components/providers/QueueProvider";
 import { aheadLabel, entryTitle, formatLabel, formatTime, placeLabel } from "@/lib/labels";
 import { cn } from "@/lib/cn";
-import { countOpenCourts, countPlaying, countWaiting, courtName, myActiveEntries, queuePosition, recentFinished, sportName } from "@/lib/selectors";
+import { countOpenCourts, countPlaying, countWaiting, courtName, myActiveEntries, queuePosition, recentFinished, selectableSports, sportName } from "@/lib/selectors";
 
 export function HomeDashboard() {
   const { state, playerToken } = useQueue();
@@ -16,7 +16,7 @@ export function HomeDashboard() {
   const playing = countPlaying(state);
   const openCourts = countOpenCourts(state);
   const recent = recentFinished(state, 3);
-  const sports = state.sports.filter((sport) => sport.enabled);
+  const sports = selectableSports(state);
 
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-4">

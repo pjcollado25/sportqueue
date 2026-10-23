@@ -5,9 +5,11 @@ import { useQueue } from "@/components/providers/QueueProvider";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FilterChips, PageHeader } from "@/components/ui/bits";
-import { fieldClass, cn } from "@/lib/cn";
 import { entryTitle, formatHint, formatLabel } from "@/lib/labels";
-import { assignableCourts, listByStatus, nextWaiting, sportById } from "@/lib/selectors";
+import { PlayersPanel } from "@/components/staff/PlayersPanel";
+import { StandingsPanel } from "@/components/staff/StandingsPanel";
+import { fieldClass, cn } from "@/lib/cn";
+import { assignableCourts, listByStatus, nextWaiting, staffManageSports, sportById, upNextEntries } from "@/lib/selectors";
 import type { PlayFormat, QueueEntry } from "@/lib/types";
 
 type ConfirmState = {
@@ -26,7 +28,7 @@ export function StaffDashboard() {
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   if (!state) return null;
 
-  const sports = state.sports.filter((sport) => sport.enabled);
+  const sports = staffManageSports(state);
   const visibleSports = sportId === "all" ? sports : sports.filter((sport) => sport.id === sportId);
 
   function report(message: string | null, success: string) {
@@ -44,8 +46,10 @@ export function StaffDashboard() {
         This is a local prototype, not a secure staff login. Anyone using this browser can change the queue.
       </p>
       <ButtonLink href="/pairs" variant="secondary" full>
-        Make pairs from a skill ranking
+        Make balanced doubles from skill levels
       </ButtonLink>
+      <PlayersPanel />
+      <StandingsPanel />
       <FilterChips
         label="Sport to manage"
         value={sportId}
@@ -88,6 +92,12 @@ export function StaffDashboard() {
               {next ? `Call ${entryTitle(next)}` : "Nobody is waiting"}
             </Button>
             <p className="text-sm text-muted">This calls the group that has been waiting the longest.</p>
+            {upNextEntries(state, sport.id).length > 0 ? (
+              <div className="rounded-2xl bg-sand px-4 py-3">
+                <p className="text-sm font-bold text-muted">Up next</p>
+                <p className="text-base font-extrabold text-pine">{entryTitle(upNextEntries(state, sport.id)[0])}</p>
+              </div>
+            ) : null}
             {playing.map((entry) => (
               <StaffCard
                 key={entry.id}
@@ -147,8 +157,10 @@ function StaffCard({
   onConfirm: (confirm: ConfirmState) => void;
   onAction: (message: string | null, success: string) => void;
 }) {
-  const { state, assignCourt, startMatch, finishMatch, returnToQueue, skip, noShow, remove } = useQueue();
+  const { state, assignCourt, startMatch, recordResult, returnToQueue, skip, noShow, remove } = useQueue();
   const [courtId, setCourtId] = useState(entry.courtId ?? "");
+  const [scoreA, setScoreA] = useState("");
+  const [scoreB, setScoreB] = useState("");
   if (!state) return null;
   const sport = sportById(state, entry.sportId);
   const courts = assignableCourts(state, entry);
@@ -199,9 +211,77 @@ function StaffCard({
       ) : null}
 
       {entry.status === "playing" ? (
-        <Button full onClick={() => onAction(finishMatch(entry.id), `${name} finished. The court is open.`)}>
-          Finish game
-        </Button>
+        <div className="grid gap-2">
+          <p className="text-sm font-semibold text-muted">Record the winner. The next group is not started automatically.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <label>
+              <span className="text-sm font-bold">Score side A (optional)</span>
+              <input
+                className={cn(fieldClass, "mt-2")}
+                inputMode="numeric"
+                value={scoreA}
+                onChange={(event) => setScoreA(event.target.value)}
+                placeholder="—"
+              />
+            </label>
+            <label>
+              <span className="text-sm font-bold">Score side B (optional)</span>
+              <input
+                className={cn(fieldClass, "mt-2")}
+                inputMode="numeric"
+                value={scoreB}
+                onChange={(event) => setScoreB(event.target.value)}
+                placeholder="—"
+              />
+            </label>
+          </div>
+          <Button
+            full
+            onClick={() => {
+              const message = recordResult(entry.id, {
+                winnerSide: "A",
+                scoreSideA: scoreA.trim() === "" ? null : Number(scoreA),
+                scoreSideB: scoreB.trim() === "" ? null : Number(scoreB),
+              });
+              onAction(message, `${name}: side A wins. Court is open.`);
+            }}
+          >
+            {entry.format === "doubles" && entry.players.length >= 4
+              ? `${entry.players[0]} & ${entry.players[1]} won`
+              : "This side won"}
+          </Button>
+          {entry.format === "doubles" && entry.players.length >= 4 ? (
+            <Button
+              variant="secondary"
+              full
+              onClick={() => {
+                const message = recordResult(entry.id, {
+                  winnerSide: "B",
+                  scoreSideA: scoreA.trim() === "" ? null : Number(scoreA),
+                  scoreSideB: scoreB.trim() === "" ? null : Number(scoreB),
+                });
+                onAction(message, `${name}: side B wins. Court is open.`);
+              }}
+            >
+              {entry.players[2]} & {entry.players[3]} won
+            </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              full
+              onClick={() => {
+                const message = recordResult(entry.id, {
+                  winnerSide: "B",
+                  scoreSideA: scoreA.trim() === "" ? null : Number(scoreA),
+                  scoreSideB: scoreB.trim() === "" ? null : Number(scoreB),
+                });
+                onAction(message, `${name} recorded as a loss. Court is open.`);
+              }}
+            >
+              Opponent won
+            </Button>
+          )}
+        </div>
       ) : null}
 
       {entry.status === "called" || entry.status === "playing" ? (
@@ -261,7 +341,7 @@ function StaffCard({
 
 function AddPlayerForm({ onDone }: { onDone: (message: string | null, success: string) => void }) {
   const { state, staffAdd } = useQueue();
-  const [sportId, setSportId] = useState(state?.sports.find((sport) => sport.enabled)?.id ?? "");
+  const [sportId, setSportId] = useState(state?.sports.find((sport) => staffManageSports(state).some((item) => item.id === sport.id))?.id ?? "");
   const [format, setFormat] = useState<PlayFormat | "">("");
   const [displayName, setDisplayName] = useState("");
   const [teammate, setTeammate] = useState("");
@@ -307,7 +387,7 @@ function AddPlayerForm({ onDone }: { onDone: (message: string | null, success: s
               setFormat("");
             }}
           >
-            {state.sports.filter((item) => item.enabled).map((item) => (
+            {staffManageSports(state).map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>

@@ -1,4 +1,8 @@
+import { ARCHIVED_SPORT_ID, archivedSport } from "@/lib/sports";
+import { sanitizeAppState } from "@/lib/validation";
 import type { AppState, Court, PlayFormat, Sport } from "@/lib/types";
+import { defaultSessionSettings } from "@/lib/types";
+import type { SkillLevel } from "@/lib/skill";
 
 const MINUTE = 60_000;
 
@@ -9,16 +13,32 @@ function sport(
   formats: PlayFormat[],
   defaultGroupSize: Sport["defaultGroupSize"],
   defaultMatchMinutes: number,
+  enabled = true,
 ): Sport {
   return {
     id,
     name,
     icon,
-    enabled: true,
+    enabled,
     formats,
     defaultGroupSize,
     defaultMatchMinutes,
     builtIn: true,
+  };
+}
+
+function samplePlayer(name: string, skillLevel: SkillLevel, order: number) {
+  return {
+    id: `player-${name.toLowerCase().replace(/\s+/g, "-")}`,
+    name,
+    skillLevel,
+    checkInOrder: order,
+    sitOutCount: 0,
+    wins: 0,
+    losses: 0,
+    games: 0,
+    pointsFor: 0,
+    pointsAgainst: 0,
   };
 }
 
@@ -27,83 +47,36 @@ export function createDemoState(now = Date.now()): AppState {
 
   const sports: Sport[] = [
     sport("pickleball", "Pickleball", "🏓", ["singles", "doubles"], { singles: 1, doubles: 2 }, 15),
-    sport("tennis", "Tennis", "🎾", ["singles", "doubles"], { singles: 1, doubles: 2 }, 60),
-    sport("badminton", "Badminton", "🏸", ["singles", "doubles"], { singles: 1, doubles: 2 }, 20),
-    sport("basketball", "Basketball", "🏀", ["team"], { team: 5 }, 40),
-    sport("volleyball", "Volleyball", "🏐", ["team"], { team: 6 }, 30),
-    sport("table-tennis", "Table tennis", "🏓", ["singles", "doubles"], { singles: 1, doubles: 2 }, 15),
-    sport("other", "Other", "🏅", ["singles", "doubles", "team"], { singles: 1, doubles: 2, team: 4 }, 30),
+    archivedSport(),
   ];
 
   const courts: Court[] = [
     { id: "court-1", name: "Court 1", sportIds: ["pickleball"], closed: false },
     { id: "court-2", name: "Court 2", sportIds: ["pickleball"], closed: false },
-    { id: "court-3", name: "Court 3", sportIds: ["tennis"], closed: false },
-    { id: "court-4", name: "Court 4", sportIds: ["badminton"], closed: false },
-    { id: "court-5", name: "Court 5", sportIds: ["basketball", "volleyball"], closed: false },
-    { id: "table-1", name: "Table 1", sportIds: ["table-tennis"], closed: false },
+    { id: "court-3", name: "Court 3", sportIds: ["pickleball"], closed: false },
+    { id: "court-4", name: "Court 4", sportIds: ["pickleball"], closed: false },
   ];
 
-  return {
-    version: 1,
+  const raw: AppState = {
+    version: 3,
     venue: { name: "Riverside Courts" },
     sports,
     courts,
+    players: [
+      samplePlayer("Alex", "advanced", 1),
+      samplePlayer("Mina", "intermediate", 2),
+      samplePlayer("Chris", "advanced_beginner", 3),
+      samplePlayer("Dee", "expert", 4),
+      samplePlayer("Ben", "intermediate", 5),
+      samplePlayer("Cam", "beginner", 6),
+    ],
+    session: defaultSessionSettings(),
+    partnerHistory: [],
+    playSession: null,
     entries: [
       {
-        id: "entry-alex",
-        sportId: "pickleball",
-        format: "doubles",
-        displayName: "Alex",
-        players: ["Alex", "Mina"],
-        courtPreferenceId: "court-1",
-        status: "waiting",
-        joinedAt: at(-20),
-        courtId: null,
-        ownerToken: null,
-      },
-      {
-        id: "entry-chris",
-        sportId: "pickleball",
-        format: "singles",
-        displayName: "Chris",
-        players: ["Chris"],
-        courtPreferenceId: null,
-        status: "waiting",
-        joinedAt: at(-6),
-        courtId: null,
-        ownerToken: null,
-      },
-      {
-        id: "entry-jordan",
-        sportId: "tennis",
-        format: "singles",
-        displayName: "Jordan",
-        players: ["Jordan"],
-        courtPreferenceId: "court-3",
-        status: "called",
-        joinedAt: at(-30),
-        calledAt: at(-2),
-        courtId: "court-3",
-        ownerToken: null,
-      },
-      {
-        id: "entry-priya",
-        sportId: "badminton",
-        format: "singles",
-        displayName: "Priya",
-        players: ["Priya"],
-        courtPreferenceId: null,
-        status: "playing",
-        joinedAt: at(-40),
-        calledAt: at(-18),
-        startedAt: at(-15),
-        courtId: "court-4",
-        ownerToken: null,
-      },
-      {
-        id: "entry-northside",
-        sportId: "basketball",
+        id: "entry-legacy",
+        sportId: ARCHIVED_SPORT_ID,
         format: "team",
         displayName: "Northside",
         players: ["Northside"],
@@ -113,12 +86,13 @@ export function createDemoState(now = Date.now()): AppState {
         calledAt: at(-95),
         startedAt: at(-90),
         endedAt: at(-50),
-        courtId: "court-5",
+        courtId: "court-4",
         ownerToken: null,
+        winnerSide: "A",
       },
       {
         id: "entry-sam",
-        sportId: "table-tennis",
+        sportId: "pickleball",
         format: "singles",
         displayName: "Sam",
         players: ["Sam"],
@@ -128,9 +102,14 @@ export function createDemoState(now = Date.now()): AppState {
         calledAt: at(-25),
         startedAt: at(-24),
         endedAt: at(-10),
-        courtId: "table-1",
+        courtId: "court-1",
         ownerToken: null,
+        winnerSide: "A",
+        scoreSideA: 11,
+        scoreSideB: 7,
       },
     ],
   };
+
+  return sanitizeAppState(raw);
 }

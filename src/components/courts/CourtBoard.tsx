@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState, OccupancyBadge, PageHeader } from "@/components/ui/bits";
 import { fieldClass } from "@/lib/cn";
 import { entryTitle } from "@/lib/labels";
-import { courtOccupancy, sportName } from "@/lib/selectors";
+import { courtOccupancy, selectableSports, sportName } from "@/lib/selectors";
 
 export function CourtBoard() {
   const { state, addCourt, updateCourt, setCourtClosed, removeCourt } = useQueue();
@@ -97,7 +97,7 @@ export function CourtBoard() {
             <legend className="text-sm font-bold">Sports on this court</legend>
             <p className="mt-1 text-sm text-muted">Leave them all off to allow any sport.</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {state.sports.map((sport) => {
+              {selectableSports(state).map((sport) => {
                 const selected = sportIds.includes(sport.id);
                 return (
                   <button

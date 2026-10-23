@@ -17,11 +17,11 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/join",
 }));
 
-test("a player can join the tennis queue from a phone-sized form", async () => {
+test("a player can join the pickleball queue from a phone-sized form", async () => {
   const user = userEvent.setup();
   renderWithQueue(<JoinWizard />);
 
-  await user.click(screen.getByRole("button", { name: "Tennis" }));
+  await user.click(screen.getByRole("button", { name: "Pickleball" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.click(screen.getByRole("button", { name: /Singles/ }));
   await user.click(screen.getByRole("button", { name: "Continue" }));

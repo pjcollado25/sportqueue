@@ -32,9 +32,25 @@
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -20%, rgb(198 240 77 / 0.22), transparent 55%),
+    var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
+}
+
+/* Subtle court-line texture — keeps the foam background from feeling flat */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.35;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 70%);
 }
 
 button,

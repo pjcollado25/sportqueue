@@ -7,7 +7,7 @@ import { useQueue } from "@/components/providers/QueueProvider";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { aheadLabel, formatHint, formatLabel, placeLabel } from "@/lib/labels";
 import { fieldClass, cn } from "@/lib/cn";
-import { courtSupportsSport, queuePosition, sportName } from "@/lib/selectors";
+import { courtSupportsSport, queuePosition, selectableSports, sportName } from "@/lib/selectors";
 import type { PlayFormat } from "@/lib/types";
 import { isActiveStatus } from "@/lib/types";
 
@@ -24,7 +24,7 @@ export function JoinWizard() {
   const params = useSearchParams();
   const { state, playerToken, join } = useQueue();
   const requested = params.get("sport");
-  const initialSport = state?.sports.find((sport) => sport.id === requested && sport.enabled)?.id ?? null;
+  const initialSport = state?.sports.find((sport) => sport.id === requested && selectableSports(state).some((item) => item.id === sport.id))?.id ?? null;
 
   const [sportId, setSportId] = useState<string | null>(initialSport);
   const [format, setFormat] = useState<PlayFormat | null>(null);
@@ -152,7 +152,7 @@ export function JoinWizard() {
             <h1 className="text-2xl font-extrabold text-pine">Choose a sport</h1>
             <p className="mt-1 text-base text-muted">Tap the game you want to play.</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
-              {state.sports.filter((item) => item.enabled).map((item) => (
+              {selectableSports(state).map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -175,7 +175,7 @@ export function JoinWizard() {
                 </button>
               ))}
             </div>
-            {state.sports.every((item) => !item.enabled) ? (
+            {selectableSports(state).length === 0 ? (
               <p className="mt-4 text-base text-muted">All sports are turned off. Ask staff to turn one on in Settings.</p>
             ) : null}
           </section>

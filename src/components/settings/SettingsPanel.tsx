@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PageHeader } from "@/components/ui/bits";
 import { fieldClass, cn } from "@/lib/cn";
 import { formatLabel } from "@/lib/labels";
+import { manageableSports } from "@/lib/sports";
 import type { PlayFormat, Sport, SportDraft } from "@/lib/types";
 import { PLAY_FORMATS } from "@/lib/types";
 
@@ -82,8 +83,9 @@ export function SettingsPanel() {
 
       <section className="grid gap-3">
         <h2 className="text-lg font-extrabold text-pine">Sports</h2>
+        <p className="text-sm text-muted">Court sessions use pickleball. Other sports here only matter for legacy history or custom venues.</p>
         <ul className="grid gap-3">
-          {state.sports.map((sport) => (
+          {manageableSports(state.sports).map((sport) => (
             <li key={sport.id} className="rounded-3xl bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -91,7 +93,9 @@ export function SettingsPanel() {
                     <span aria-hidden>{sport.icon} </span>
                     {sport.name}
                   </h3>
-                  <p className="mt-1 text-sm text-muted">{sport.formats.map((format) => formatLabel(format)).join(", ")}</p>
+                  <p className="mt-1 text-sm text-muted">
+                    {sport.formats.map((format) => formatLabel(format)).join(", ")}
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -132,7 +136,7 @@ export function SettingsPanel() {
       <section className="grid gap-3 rounded-3xl bg-white p-4">
         <h2 className="text-lg font-extrabold text-pine">Backup in this browser</h2>
         <p className="text-sm leading-6 text-muted">
-          Export downloads a file. It is not uploaded. Restore replaces the queue, sports, and courts currently saved in this browser.
+          Export downloads a file. It is not uploaded. Restore replaces the queue, player list, sports, courts, and history currently saved in this browser.
         </p>
         <Button
           full

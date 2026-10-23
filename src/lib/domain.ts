@@ -1,11 +1,17 @@
 import { createId } from "@/lib/ids";
+import { activePlayerNames, upsertPlayerNames } from "@/lib/players";
 import { pickSkillPairs, type RankedPlayer } from "@/lib/pairing";
+import { partnerHistoryKey, playerNameKey, type SkillLevel } from "@/lib/skill";
 import { courtOccupancy, courtSupportsSport, listWaiting, sportById } from "@/lib/selectors";
+import { isSportSelectable } from "@/lib/sports";
 import type {
   AppState,
   CourtDraft,
   DomainResult,
   JoinRequest,
+  MatchResultUndo,
+  MatchWinnerSide,
+  PlayerProfile,
   QueueEntry,
   Sport,
   SportDraft,
@@ -83,9 +89,24 @@ function preferenceError(state: AppState, sportId: string, courtPreferenceId: st
   return null;
 }
 
+function assertPlayersAvailable(state: AppState, names: string[]): string | null {
+  const active = activePlayerNames(state);
+  for (const name of names) {
+    const key = playerNameKey(name);
+    if (active.has(key)) return `${name.trim()} is already waiting, called, or playing.`;
+  }
+  return null;
+}
+
+function sportForNewPlay(state: AppState, sportId: string): Sport | null {
+  const sport = sportById(state, sportId);
+  if (!sport || !isSportSelectable(sport)) return null;
+  return sport;
+}
+
 export function joinQueue(state: AppState, input: JoinRequest & { ownerToken: string }, now = new Date().toISOString()): DomainResult {
-  const sport = sportById(state, input.sportId);
-  if (!sport || !sport.enabled) return fail("Pick a sport that is turned on.");
+  const sport = sportForNewPlay(state, input.sportId);
+  if (!sport) return fail("Pick a sport that is turned on.");
   if (!sport.formats.includes(input.format)) return fail("That sport does not offer this way of playing.");
   const names = normalizeNames(input);
   if ("error" in names) return fail(names.error);
@@ -101,6 +122,8 @@ export function joinQueue(state: AppState, input: JoinRequest & { ownerToken: st
   if (already) return fail("You are already in this sport's queue. Check Live queue for your place.");
 
   const players = input.format === "team" ? (names.teammates.length > 0 ? names.teammates : [names.name]) : [names.name, ...names.teammates];
+  const busy = assertPlayersAvailable(state, players);
+  if (busy) return fail(busy);
   const entryId = createId();
   const entry: QueueEntry = {
     id: entryId,
@@ -114,7 +137,8 @@ export function joinQueue(state: AppState, input: JoinRequest & { ownerToken: st
     courtId: null,
     ownerToken: input.ownerToken,
   };
-  return ok({ ...state, entries: [...state.entries, entry] }, entryId);
+  const withPlayers = upsertPlayerNames(state, players);
+  return ok({ ...withPlayers, entries: [...withPlayers.entries, entry] }, entryId);
 }
 
 export function staffAddEntry(state: AppState, input: JoinRequest, now = new Date().toISOString()): DomainResult {
@@ -135,10 +159,10 @@ export function addSkillPairs(
   input: { sportId: string; players: RankedPlayer[] },
   now = new Date().toISOString(),
 ): DomainResult {
-  const sport = sportById(state, input.sportId);
-  if (!sport || !sport.enabled) return fail("Pick a sport that is turned on.");
+  const sport = sportForNewPlay(state, input.sportId);
+  if (!sport) return fail("Pick a sport that is turned on.");
   if (!sport.formats.includes("doubles")) return fail("That sport does not offer doubles, so pairs cannot be added.");
-  const picked = pickSkillPairs(input.players);
+  const picked = pickSkillPairs(input.players, { partnerHistory: new Set(state.partnerHistory) });
   if (!picked.ok) return fail(picked.error);
 
   const groups: string[][] = [
@@ -151,6 +175,10 @@ export function addSkillPairs(
     ...(picked.pairing.waitingPair ? [[picked.pairing.waitingPair.players[0], picked.pairing.waitingPair.players[1]]] : []),
   ];
   if (groups.length === 0) return fail("Add at least two names so a pair can be made.");
+
+  const allNames = groups.flat();
+  const busy = assertPlayersAvailable(state, allNames);
+  if (busy) return fail(busy);
 
   const start = Date.parse(now);
   const base = Number.isFinite(start) ? start : Date.now();
@@ -167,18 +195,46 @@ export function addSkillPairs(
     ownerToken: null,
   }));
 
-  return ok({ ...state, entries: [...state.entries, ...entries] });
+  let next = upsertPlayerNames(state, allNames);
+  const partnerKeys: string[] = [];
+  for (const game of picked.pairing.games) {
+    partnerKeys.push(partnerHistoryKey(game.sideA.players[0], game.sideA.players[1]));
+    partnerKeys.push(partnerHistoryKey(game.sideB.players[0], game.sideB.players[1]));
+  }
+  if (picked.pairing.waitingPair) {
+    partnerKeys.push(partnerHistoryKey(picked.pairing.waitingPair.players[0], picked.pairing.waitingPair.players[1]));
+  }
+  const history = new Set(next.partnerHistory);
+  for (const key of partnerKeys) history.add(key);
+
+  if (picked.pairing.sittingOut) {
+    const key = playerNameKey(picked.pairing.sittingOut);
+    next = {
+      ...next,
+      players: next.players.map((player) =>
+        playerNameKey(player.name) === key ? { ...player, sitOutCount: player.sitOutCount + 1 } : player,
+      ),
+    };
+  }
+
+  return ok({
+    ...next,
+    partnerHistory: [...history],
+    entries: [...next.entries, ...entries],
+  });
 }
 
 function addAsStaff(state: AppState, input: JoinRequest, now: string): DomainResult {
   const names = normalizeNames(input);
   if ("error" in names) return fail(names.error);
-  const sport = sportById(state, input.sportId);
-  if (!sport || !sport.enabled) return fail("Pick a sport that is turned on.");
+  const sport = sportForNewPlay(state, input.sportId);
+  if (!sport) return fail("Pick a sport that is turned on.");
   if (!sport.formats.includes(input.format)) return fail("That sport does not offer this way of playing.");
   const preference = preferenceError(state, sport.id, input.courtPreferenceId);
   if (preference) return fail(preference);
   const players = input.format === "team" ? (names.teammates.length > 0 ? names.teammates : [names.name]) : [names.name, ...names.teammates];
+  const busy = assertPlayersAvailable(state, players);
+  if (busy) return fail(busy);
   const entryId = createId();
   const entry: QueueEntry = {
     id: entryId,
@@ -192,7 +248,8 @@ function addAsStaff(state: AppState, input: JoinRequest, now: string): DomainRes
     courtId: null,
     ownerToken: null,
   };
-  return ok({ ...state, entries: [...state.entries, entry] }, entryId);
+  const withPlayers = upsertPlayerNames(state, players);
+  return ok({ ...withPlayers, entries: [...withPlayers.entries, entry] }, entryId);
 }
 
 export function leaveQueue(state: AppState, entryId: string, token: string, now = new Date().toISOString()): DomainResult {
@@ -270,6 +327,167 @@ export function finishMatch(state: AppState, entryId: string, now = new Date().t
   if (!entry) return fail("That queue entry is no longer here.");
   if (entry.status !== "playing") return fail("Only a game that has started can be finished.");
   return ok(mapEntry(state, entryId, (item) => ({ ...item, status: "completed", endedAt: now })));
+}
+
+function winnersAndLosers(entry: QueueEntry, winnerSide: MatchWinnerSide): { winners: string[]; losers: string[] } {
+  if (entry.format === "doubles" && entry.players.length >= 4) {
+    const sideA = entry.players.slice(0, 2);
+    const sideB = entry.players.slice(2, 4);
+    return winnerSide === "A" ? { winners: sideA, losers: sideB } : { winners: sideB, losers: sideA };
+  }
+  const player = entry.players[0] ?? entry.displayName;
+  return winnerSide === "A" ? { winners: [player], losers: [] } : { winners: [], losers: [player] };
+}
+
+function applyPlayerDelta(players: PlayerProfile[], playerId: string, delta: MatchResultUndo["playerDeltas"][number]): PlayerProfile[] {
+  return players.map((player) => {
+    if (player.id !== playerId) return player;
+    return {
+      ...player,
+      wins: player.wins + delta.wins,
+      losses: player.losses + delta.losses,
+      games: player.games + delta.games,
+      pointsFor: player.pointsFor + delta.pointsFor,
+      pointsAgainst: player.pointsAgainst + delta.pointsAgainst,
+    };
+  });
+}
+
+export function recordMatchResult(
+  state: AppState,
+  entryId: string,
+  input: { winnerSide: MatchWinnerSide; scoreSideA?: number | null; scoreSideB?: number | null },
+  now = new Date().toISOString(),
+): DomainResult {
+  const entry = findEntry(state, entryId);
+  if (!entry) return fail("That queue entry is no longer here.");
+  if (entry.status !== "playing") return fail("Start the game on a court before recording a result.");
+
+  const scoreSideA = input.scoreSideA ?? null;
+  const scoreSideB = input.scoreSideB ?? null;
+  if (scoreSideA !== null && (!Number.isInteger(scoreSideA) || scoreSideA < 0 || scoreSideA > 99)) {
+    return fail("Enter a score between 0 and 99.");
+  }
+  if (scoreSideB !== null && (!Number.isInteger(scoreSideB) || scoreSideB < 0 || scoreSideB > 99)) {
+    return fail("Enter a score between 0 and 99.");
+  }
+
+  const { winners, losers } = winnersAndLosers(entry, input.winnerSide);
+  const allNames = [...winners, ...losers];
+  let next = upsertPlayerNames(state, allNames.length > 0 ? allNames : entry.players);
+
+  const playerDeltas: MatchResultUndo["playerDeltas"] = [];
+  const pointsA = scoreSideA ?? 0;
+  const pointsB = scoreSideB ?? 0;
+  const winnersPoints = input.winnerSide === "A" ? pointsA : pointsB;
+  const losersPoints = input.winnerSide === "A" ? pointsB : pointsA;
+  const trackPoints = scoreSideA !== null && scoreSideB !== null;
+
+  for (const name of winners) {
+    const profile = next.players.find((player) => playerNameKey(player.name) === playerNameKey(name));
+    if (!profile) continue;
+    const delta = {
+      playerId: profile.id,
+      wins: 1,
+      losses: 0,
+      games: 1,
+      pointsFor: trackPoints ? winnersPoints : 0,
+      pointsAgainst: trackPoints ? losersPoints : 0,
+    };
+    playerDeltas.push(delta);
+    next = { ...next, players: applyPlayerDelta(next.players, profile.id, delta) };
+  }
+  for (const name of losers) {
+    const profile = next.players.find((player) => playerNameKey(player.name) === playerNameKey(name));
+    if (!profile) continue;
+    const delta = {
+      playerId: profile.id,
+      wins: 0,
+      losses: 1,
+      games: 1,
+      pointsFor: trackPoints ? losersPoints : 0,
+      pointsAgainst: trackPoints ? winnersPoints : 0,
+    };
+    playerDeltas.push(delta);
+    next = { ...next, players: applyPlayerDelta(next.players, profile.id, delta) };
+  }
+
+  const undo: MatchResultUndo = {
+    winnerSide: input.winnerSide,
+    scoreSideA,
+    scoreSideB,
+    playerDeltas,
+    partnerKeysAdded: [],
+    sitOutDeltas: [],
+  };
+
+  const completed = mapEntry(next, entryId, (item) => ({
+    ...item,
+    status: "completed",
+    endedAt: now,
+    winnerSide: input.winnerSide,
+    scoreSideA,
+    scoreSideB,
+    resultUndo: undo,
+  }));
+
+  return ok(completed);
+}
+
+export function undoMatchResult(state: AppState, entryId: string): DomainResult {
+  const entry = findEntry(state, entryId);
+  if (!entry) return fail("That queue entry is no longer here.");
+  if (entry.status !== "completed" || !entry.resultUndo) return fail("There is no result to undo for this game.");
+
+  let players = state.players;
+  for (const delta of entry.resultUndo.playerDeltas) {
+    players = applyPlayerDelta(players, delta.playerId, {
+      playerId: delta.playerId,
+      wins: -delta.wins,
+      losses: -delta.losses,
+      games: -delta.games,
+      pointsFor: -delta.pointsFor,
+      pointsAgainst: -delta.pointsAgainst,
+    });
+  }
+
+  const restored = mapEntry({ ...state, players }, entryId, (item) => ({
+    ...item,
+    status: "playing",
+    endedAt: undefined,
+    winnerSide: null,
+    scoreSideA: null,
+    scoreSideB: null,
+    resultUndo: null,
+  }));
+
+  return ok(restored);
+}
+
+export function setPlayerSkillLevel(state: AppState, playerId: string, skillLevel: SkillLevel | null): DomainResult {
+  const player = state.players.find((item) => item.id === playerId);
+  if (!player) return fail("That player is no longer on the list.");
+  return ok({
+    ...state,
+    players: state.players.map((item) => (item.id === playerId ? { ...item, skillLevel } : item)),
+  });
+}
+
+export function removePlayerProfile(state: AppState, playerId: string): DomainResult {
+  const player = state.players.find((item) => item.id === playerId);
+  if (!player) return fail("That player is no longer on the list.");
+  const active = activePlayerNames(state);
+  if (active.has(playerNameKey(player.name))) {
+    return fail("This player is still in the live queue or on a court.");
+  }
+  return ok({ ...state, players: state.players.filter((item) => item.id !== playerId) });
+}
+
+export function setMinGamesForRanking(state: AppState, minGames: number): DomainResult {
+  if (!Number.isInteger(minGames) || minGames < 1 || minGames > 20) {
+    return fail("Minimum games for ranking must be between 1 and 20.");
+  }
+  return ok({ ...state, session: { ...state.session, minGamesForRanking: minGames } });
 }
 
 export function returnToQueue(state: AppState, entryId: string): DomainResult {

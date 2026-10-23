@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState, FilterChips, PageHeader, StatusBadge } from "@/components/ui/bits";
 import { useNow } from "@/lib/use-now";
 import { entryPlayersLine, entryTitle, formatLabel, statusLabel, waitLabel } from "@/lib/labels";
-import { courtName, listByStatus, myActiveEntries, queuePosition, sportName } from "@/lib/selectors";
+import { courtName, filterSportsForHistory, listByStatus, myActiveEntries, queuePosition, sportName, upNextEntries } from "@/lib/selectors";
 import { isActiveStatus, type QueueEntry } from "@/lib/types";
 
 export function LiveQueue() {
@@ -33,7 +33,7 @@ export function LiveQueue() {
         label="Sport"
         value={sportId}
         onChange={setSportId}
-        options={[{ id: "all", label: "All sports" }, ...state.sports.filter((sport) => sport.enabled).map((sport) => ({ id: sport.id, label: sport.name }))]}
+        options={[{ id: "all", label: "All sports" }, ...filterSportsForHistory(state).map((sport) => ({ id: sport.id, label: sport.name }))]}
       />
       {error ? (
         <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-danger">
@@ -49,6 +49,8 @@ export function LiveQueue() {
           ))}
         </section>
       ) : null}
+
+      <UpNextSection sportId={sportFilter} />
 
       {empty ? (
         <EmptyState
@@ -83,6 +85,28 @@ export function LiveQueue() {
         />
       ) : null}
     </div>
+  );
+}
+
+function UpNextSection({ sportId }: { sportId?: string }) {
+  const { state } = useQueue();
+  if (!state) return null;
+  const upNext = upNextEntries(state, sportId);
+  if (upNext.length === 0) return null;
+  return (
+    <section className="grid gap-2">
+      <h2 className="text-lg font-extrabold text-pine">Up next</h2>
+      <ul className="grid gap-2">
+        {upNext.map((entry, index) => (
+          <li key={entry.id} className="rounded-3xl bg-sand px-4 py-3">
+            <p className="text-sm font-bold text-muted">
+              {index === 0 ? "Next" : `Then #${index + 1}`} · {sportName(state, entry.sportId)}
+            </p>
+            <p className="text-base font-extrabold text-pine">{entryTitle(entry)}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

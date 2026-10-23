@@ -2,7 +2,7 @@
 
 One queue. Every sport.
 
-SportQueue is a phone-first queue board for recreational courts. Players join a sport, see their place, and staff on the same phone call the next group, assign a court, and finish the game.
+SportQueue is a phone-first court session app for recreational pickleball. Staff start a session, check players in, build balanced doubles, run an Up Next queue, assign courts, record results, and view rankings — all on one phone.
 
 ## This phone only
 
@@ -13,8 +13,8 @@ The queue is saved in this browser with `localStorage`. It stays after a refresh
 The app is designed for a phone in the hand:
 
 - Large type and buttons
-- A bottom menu: Home, Join, Queue, Courts, and More
-- More opens Match history, Settings, and the Staff dashboard
+- A bottom menu: Session, Players, Rankings, History, and More (Settings)
+- The Session screen is the live hub during play
 - Wider screens show the same sections in a side menu
 
 ## Run it
@@ -40,11 +40,9 @@ npm run build
 
 ## What you can do
 
-Players can pick a sport, choose singles, doubles, or team play when that sport allows it, enter a name, optionally add teammates, pick a court preference, and join. They can see their place and leave while they are waiting or have been called. They can only leave a spot joined on that phone.
+Staff start a pickleball session (court count and singles or doubles), manage a player list with estimated skill ratings, check players in, generate balanced doubles for review, send games to Up Next, call and assign courts, start play only when ready, and record winners with optional scores. Rankings and Game history are separate tabs. Settings covers venue name, sports, export, restore, and sample data.
 
-Staff on that phone can call the next group, skip, mark a no-show, assign a court, start, finish, send a group back, add someone manually, and remove an entry. Settings covers the venue name, sports, export, restore, and sample data. Courts shows what is open, reserved, or in play.
-
-Built-in sports are pickleball, tennis, badminton, basketball, volleyball, table tennis, and other. Venues can edit them or add their own. A sport with people still waiting or playing cannot be removed.
+Built-in sports are pickleball, tennis, badminton, volleyball, table tennis, and other. Basketball remains in history only and cannot be chosen for new play. Venues can edit sports or add their own. A sport with people still waiting or playing cannot be removed.
 
 ## Code map
 

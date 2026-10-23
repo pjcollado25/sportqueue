@@ -9,23 +9,43 @@ import {
   joinQueue,
   leaveQueue,
   markNoShow,
+  recordMatchResult,
   removeCourt,
   removeEntry,
+  removePlayerProfile,
   removeSport,
   returnToQueue,
   setCourtClosed,
+  setMinGamesForRanking as setMinGamesForRankingDomain,
+  setPlayerSkillLevel,
   setSportEnabled,
   setVenueName,
   skipEntry,
   staffAddEntry,
   startMatch,
+  undoMatchResult,
   updateCourt,
   updateSport,
 } from "@/lib/domain";
+import {
+  addPlayersToRoster,
+  checkInAllPlayers,
+  checkInPlayer,
+  checkOutPlayer,
+  clearStagedGame,
+  endPlaySession,
+  generateStagedGame,
+  regenerateStagedGame,
+  renamePlayer,
+  sendStagedGameToQueue,
+  startPlaySession,
+} from "@/lib/session-domain";
 import type { RankedPlayer } from "@/lib/pairing";
+import type { SkillLevel } from "@/lib/skill";
+import type { MatchWinnerSide } from "@/lib/types";
 import type { SportQueueRepository } from "@/lib/repository";
 import { createLocalStorageRepository } from "@/lib/storage";
-import type { AppState, CourtDraft, DomainResult, JoinRequest, SportDraft } from "@/lib/types";
+import type { AppState, CourtDraft, DomainResult, JoinRequest, PlayFormat, SportDraft } from "@/lib/types";
 import { parseAppState } from "@/lib/validation";
 
 export interface QueueSnapshot {
@@ -53,7 +73,15 @@ export interface QueueStore {
   assignCourt: (entryId: string, courtId: string) => string | null;
   startMatch: (entryId: string) => string | null;
   finishMatch: (entryId: string) => string | null;
+  recordResult: (
+    entryId: string,
+    input: { winnerSide: MatchWinnerSide; scoreSideA?: number | null; scoreSideB?: number | null },
+  ) => string | null;
+  undoResult: (entryId: string) => string | null;
   returnToQueue: (entryId: string) => string | null;
+  setPlayerSkill: (playerId: string, skillLevel: SkillLevel | null) => string | null;
+  removePlayer: (playerId: string) => string | null;
+  setMinGamesForRanking: (minGames: number) => string | null;
   setVenue: (name: string) => string | null;
   addSport: (draft: SportDraft) => string | null;
   updateSport: (sportId: string, draft: SportDraft) => string | null;
@@ -65,6 +93,17 @@ export interface QueueStore {
   removeCourt: (courtId: string) => string | null;
   restore: (input: unknown) => string | null;
   reset: () => void;
+  startSession: (input: { courtCount: number; format: PlayFormat; checkInPlayerIds?: string[] }) => string | null;
+  endSession: () => string | null;
+  checkIn: (playerId: string) => string | null;
+  checkInAll: () => { error: string | null; notice: string | null };
+  checkOut: (playerId: string) => string | null;
+  addPlayers: (names: string[]) => string | null;
+  renamePlayer: (playerId: string, name: string) => string | null;
+  generateStaged: () => string | null;
+  regenerateStaged: () => string | null;
+  clearStaged: () => string | null;
+  sendStagedToQueue: () => string | null;
 }
 
 export function createQueueStore(repository?: SportQueueRepository): QueueStore {
@@ -176,6 +215,16 @@ export function createQueueStore(repository?: SportQueueRepository): QueueStore 
       if (!current.state) return "SportQueue is still opening.";
       return apply(finishMatch(current.state, entryId));
     },
+    recordResult(entryId, input) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(recordMatchResult(current.state, entryId, input));
+    },
+    undoResult(entryId) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(undoMatchResult(current.state, entryId));
+    },
     returnToQueue(entryId) {
       const current = ensure();
       if (!current.state) return "SportQueue is still opening.";
@@ -185,6 +234,21 @@ export function createQueueStore(repository?: SportQueueRepository): QueueStore 
       const current = ensure();
       if (!current.state) return "SportQueue is still opening.";
       return apply(setVenueName(current.state, name));
+    },
+    setPlayerSkill(playerId, skillLevel) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(setPlayerSkillLevel(current.state, playerId, skillLevel));
+    },
+    removePlayer(playerId) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(removePlayerProfile(current.state, playerId));
+    },
+    setMinGamesForRanking(minGames) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(setMinGamesForRankingDomain(current.state, minGames));
     },
     addSport(draft) {
       const current = ensure();
@@ -234,6 +298,78 @@ export function createQueueStore(repository?: SportQueueRepository): QueueStore 
     },
     reset() {
       commit(createDemoState());
+    },
+    startSession(input) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(startPlaySession(current.state, input));
+    },
+    endSession() {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(endPlaySession(current.state));
+    },
+    checkIn(playerId) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(checkInPlayer(current.state, playerId));
+    },
+    checkInAll() {
+      const current = ensure();
+      if (!current.state) return { error: "SportQueue is still opening.", notice: null };
+      const result = checkInAllPlayers(current.state);
+      if (!result.ok) return { error: result.error, notice: null };
+      const applyError = apply({ ok: true, state: result.state });
+      if (applyError) return { error: applyError, notice: null };
+      if (result.added === 0 && result.skipped.length === 0) {
+        return { error: null, notice: "Everyone on the roster is already checked in." };
+      }
+      if (result.added === 0) {
+        return {
+          error: null,
+          notice: `No one was checked in. ${result.skipped.length} player(s) are in the queue or on a court.`,
+        };
+      }
+      let notice = `Checked in ${result.added} player${result.added === 1 ? "" : "s"}.`;
+      if (result.skipped.length > 0) {
+        notice += ` ${result.skipped.length} skipped (in queue or on court).`;
+      }
+      return { error: null, notice };
+    },
+    checkOut(playerId) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(checkOutPlayer(current.state, playerId));
+    },
+    addPlayers(names) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(addPlayersToRoster(current.state, names));
+    },
+    renamePlayer(playerId, name) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(renamePlayer(current.state, playerId, name));
+    },
+    generateStaged() {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(generateStagedGame(current.state));
+    },
+    regenerateStaged() {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(regenerateStagedGame(current.state));
+    },
+    clearStaged() {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(clearStagedGame(current.state));
+    },
+    sendStagedToQueue() {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(sendStagedGameToQueue(current.state));
     },
   };
 }

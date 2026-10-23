@@ -1,3 +1,4 @@
+import { isArchivedSportId, isSportSelectable } from "@/lib/sports";
 import type { AppState, Court, CourtOccupancy, QueueEntry, Sport } from "@/lib/types";
 import { isActiveStatus } from "@/lib/types";
 
@@ -15,7 +16,8 @@ export function courtName(state: AppState, courtId: string | null | undefined): 
 }
 
 export function sportName(state: AppState, sportId: string): string {
-  return sportById(state, sportId)?.name ?? "Unknown sport";
+  if (isArchivedSportId(sportId)) return "Past game";
+  return sportById(state, sportId)?.name ?? "Past game";
 }
 
 export function courtSupportsSport(court: Court, sportId: string): boolean {
@@ -108,4 +110,26 @@ export function assignableCourts(state: AppState, entry: QueueEntry): Court[] {
 
 export function enabledSports(state: AppState): Sport[] {
   return state.sports.filter((sport) => sport.enabled);
+}
+
+export function selectableSports(state: AppState): Sport[] {
+  return state.sports.filter((sport) => isSportSelectable(sport));
+}
+
+export function filterSportsForHistory(state: AppState): Sport[] {
+  const used = new Set(state.entries.map((entry) => entry.sportId));
+  return state.sports.filter(
+    (sport) => !isArchivedSportId(sport.id) && (isSportSelectable(sport) || used.has(sport.id)),
+  );
+}
+
+export function upNextEntries(state: AppState, sportId?: string): QueueEntry[] {
+  return listWaiting(state, sportId).slice(0, 3);
+}
+
+export function staffManageSports(state: AppState): Sport[] {
+  return state.sports.filter((sport) => {
+    if (isSportSelectable(sport) && sport.enabled) return true;
+    return state.entries.some((entry) => entry.sportId === sport.id && isActiveStatus(entry.status));
+  });
 }

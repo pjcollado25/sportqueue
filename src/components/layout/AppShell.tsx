@@ -1,17 +1,6 @@
 "use client";
 
-import {
-  ClipboardList,
-  History,
-  House,
-  LayoutGrid,
-  ListOrdered,
-  Menu,
-  Settings,
-  Shuffle,
-  UserPlus,
-  type LucideIcon,
-} from "lucide-react";
+import { ClipboardList, History, Menu, Settings, Trophy, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -27,23 +16,14 @@ type NavItem = {
 };
 
 const primaryNav: NavItem[] = [
-  { href: "/", label: "Home", short: "Home", icon: House },
-  { href: "/join", label: "Join queue", short: "Join", icon: UserPlus },
-  { href: "/queue", label: "Live queue", short: "Queue", icon: ListOrdered },
-  { href: "/courts", label: "Courts", short: "Courts", icon: LayoutGrid },
+  { href: "/", label: "Session", short: "Session", icon: ClipboardList, description: "Courts, Up Next, and live games" },
+  { href: "/players", label: "Players", short: "Players", icon: Users, description: "Roster, play levels, and check-in" },
+  { href: "/rankings", label: "Rankings", short: "Ranks", icon: Trophy, description: "Wins and win percentage" },
+  { href: "/history", label: "Game history", short: "History", icon: History, description: "Finished games, including past sports" },
 ];
 
 const moreNav: NavItem[] = [
-  { href: "/pairs", label: "Make pairs", short: "Pairs", icon: Shuffle, description: "Add names, rank them by skill, and build even doubles" },
-  { href: "/history", label: "Match history", short: "History", icon: History, description: "Games that already finished" },
-  { href: "/settings", label: "Settings", short: "Settings", icon: Settings, description: "Venue, sports, and backup" },
-  {
-    href: "/staff",
-    label: "Staff dashboard",
-    short: "Staff",
-    icon: ClipboardList,
-    description: "Call players and run courts in this browser",
-  },
+  { href: "/settings", label: "Settings", short: "Settings", icon: Settings, description: "Venue name and backup" },
 ];
 
 function isCurrent(pathname: string, href: string): boolean {
@@ -57,6 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [morePath, setMorePath] = useState<string | null>(null);
   const moreOpen = morePath === pathname;
   const moreCurrent = moreNav.some((item) => isCurrent(pathname, item.href));
+  const sessionActive = Boolean(state?.playSession);
 
   return (
     <div className="min-h-dvh bg-foam text-foreground">
@@ -69,10 +50,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-lime text-2xl" aria-hidden>
               🏓
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-base font-extrabold leading-tight">SportQueue</p>
-              <p className="truncate text-sm text-lime">{ready && state ? state.venue.name : "This phone"}</p>
+              <p className="truncate text-sm text-lime">
+                {ready && state ? state.venue.name : "This phone"}
+                {sessionActive ? " · Live session" : " · No active session"}
+              </p>
             </div>
+            {sessionActive ? (
+              <span className="shrink-0 rounded-full bg-lime/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-lime">
+                On court
+              </span>
+            ) : null}
           </div>
         </div>
       </header>
@@ -84,6 +73,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <NavLink key={item.href} item={item} current={isCurrent(pathname, item.href)} />
             ))}
           </nav>
+          <p className="mt-6 rounded-2xl bg-white p-3 text-xs leading-5 text-muted">
+            Saved in this browser only. Not shared across phones or accounts.
+          </p>
         </aside>
         <main
           id="content"
@@ -175,7 +167,7 @@ function NavLink({ item, current }: { item: NavItem; current: boolean }) {
       aria-current={current ? "page" : undefined}
       className={cn(
         "flex min-h-12 items-center gap-3 rounded-2xl px-3 text-base font-bold",
-        current ? "bg-lime text-pine" : "text-pine hover:bg-white",
+        current ? "bg-white/14 text-lime ring-1 ring-white/20" : "text-lime/90 hover:bg-white/10",
       )}
     >
       <item.icon aria-hidden size={20} />

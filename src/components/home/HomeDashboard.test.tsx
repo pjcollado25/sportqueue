@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
-import { HomeDashboard } from "@/components/home/HomeDashboard";
+import { SessionHub } from "@/components/session/SessionHub";
 import { renderWithQueue } from "@/test/render-with-queue";
 
 vi.mock("next/link", () => ({
@@ -11,14 +11,8 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-test("home shows live counts and the main actions", () => {
-  renderWithQueue(<HomeDashboard />);
-  expect(screen.getByRole("heading", { name: "Welcome" }).textContent).toBe("Welcome");
-  expect(screen.getByText("You're at Riverside Courts.").textContent).toContain("Riverside Courts");
-  expect(screen.getByRole("link", { name: "Join queue" }).getAttribute("href")).toBe("/join");
-  expect(screen.getByRole("link", { name: "Make pairs" }).getAttribute("href")).toBe("/pairs");
-  expect(screen.getByRole("link", { name: "Staff dashboard" }).getAttribute("href")).toBe("/staff");
-  expect(screen.getByText("Waiting").parentElement?.textContent).toContain("2");
-  expect(screen.getByText("Playing").parentElement?.textContent).toContain("1");
-  expect(screen.getByText("Open courts").parentElement?.textContent).toContain("4");
+test("shows session setup when no play session is active", () => {
+  renderWithQueue(<SessionHub />);
+  expect(screen.getByRole("heading", { name: "Pickleball today" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Continue to players" })).toBeTruthy();
 });

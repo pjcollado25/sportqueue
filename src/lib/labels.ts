@@ -7,9 +7,15 @@ export function formatLabel(format: PlayFormat): string {
 }
 
 export function formatHint(format: PlayFormat): string {
-  if (format === "singles") return "One player";
-  if (format === "doubles") return "You and a partner";
-  return "A group playing together";
+  if (format === "singles") return "Solo — one name per queue spot";
+  if (format === "doubles") return "Doubles — two per side";
+  return "Team — your group plays together";
+}
+
+/** Subtitle on session setup and format cards (staff workflow). */
+export function formatSessionHint(format: PlayFormat): string {
+  if (format === "singles") return "One player per queue spot";
+  return "Balanced sides using play levels (not win/loss rankings)";
 }
 
 export function statusLabel(status: EntryStatus): string {
