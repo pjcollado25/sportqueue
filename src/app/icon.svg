@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="SportQueue">
+  <rect width="32" height="32" rx="9" fill="#c6f04d"/>
+  <circle cx="11.5" cy="11.5" r="5.5" fill="none" stroke="#0e3b2e" stroke-width="2.25"/>
+  <path d="M15.5 15.5 L23.5 23.5" stroke="#0e3b2e" stroke-width="2.25" stroke-linecap="round"/>
+</svg>
