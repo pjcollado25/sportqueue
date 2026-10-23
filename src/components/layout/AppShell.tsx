@@ -8,6 +8,7 @@ import {
   ListOrdered,
   Menu,
   Settings,
+  Shuffle,
   UserPlus,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +34,7 @@ const primaryNav: NavItem[] = [
 ];
 
 const moreNav: NavItem[] = [
+  { href: "/pairs", label: "Make pairs", short: "Pairs", icon: Shuffle, description: "Add names, rank them by skill, and build even doubles" },
   { href: "/history", label: "Match history", short: "History", icon: History, description: "Games that already finished" },
   { href: "/settings", label: "Settings", short: "Settings", icon: Settings, description: "Venue, sports, and backup" },
   {
@@ -40,7 +42,7 @@ const moreNav: NavItem[] = [
     label: "Staff dashboard",
     short: "Staff",
     icon: ClipboardList,
-    description: "Call players and run courts on this phone",
+    description: "Call players and run courts in this browser",
   },
 ];
 
@@ -73,13 +75,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
-        <p className="bg-pine-deep px-4 py-2 text-center text-xs leading-5 text-lime md:text-sm">
-          Saved on this phone only. Other phones do not share this queue.
-        </p>
       </header>
 
       <div className="mx-auto flex w-full max-w-6xl">
-        <aside className="sticky top-28 hidden h-[calc(100dvh-8rem)] w-64 shrink-0 overflow-y-auto px-4 py-5 md:block">
+        <aside className="sticky top-[4.25rem] hidden h-[calc(100dvh-4.25rem)] w-64 shrink-0 overflow-y-auto px-4 py-5 md:block">
           <nav aria-label="Sections" className="grid gap-1">
             {[...primaryNav, ...moreNav].map((item) => (
               <NavLink key={item.href} item={item} current={isCurrent(pathname, item.href)} />

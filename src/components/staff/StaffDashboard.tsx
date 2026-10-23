@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQueue } from "@/components/providers/QueueProvider";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FilterChips, PageHeader } from "@/components/ui/bits";
 import { fieldClass, cn } from "@/lib/cn";
@@ -38,11 +38,14 @@ export function StaffDashboard() {
     <div className="mx-auto grid w-full max-w-3xl gap-4">
       <PageHeader
         title="Staff dashboard"
-        description="Call the next group, assign a court, and start or finish a game. These controls are only on this phone."
+        description="Call the next group, assign a court, and start or finish a game. These controls stay in this browser."
       />
       <p className="rounded-3xl bg-sand px-4 py-3 text-sm font-semibold leading-6 text-clay">
-        This is a local prototype, not a secure staff login. Anyone using this phone can change the queue.
+        This is a local prototype, not a secure staff login. Anyone using this browser can change the queue.
       </p>
+      <ButtonLink href="/pairs" variant="secondary" full>
+        Make pairs from a skill ranking
+      </ButtonLink>
       <FilterChips
         label="Sport to manage"
         value={sportId}

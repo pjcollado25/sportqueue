@@ -47,6 +47,10 @@ export function occupancyLabel(occupancy: CourtOccupancy): string {
 }
 
 export function entryTitle(entry: QueueEntry): string {
+  if (entry.format === "doubles" && entry.players.length === 4) {
+    const [a, b, c, d] = entry.players;
+    return `${a} & ${b} vs ${c} & ${d}`;
+  }
   if (entry.format === "team") return entry.displayName;
   if (entry.players.length > 1) return entry.players.join(" & ");
   return entry.displayName;

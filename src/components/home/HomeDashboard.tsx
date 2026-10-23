@@ -58,6 +58,9 @@ export function HomeDashboard() {
         <ButtonLink href="/join" full>
           Join queue
         </ButtonLink>
+        <ButtonLink href="/pairs" variant="secondary" full>
+          Make pairs
+        </ButtonLink>
         <ButtonLink href="/staff" variant="secondary" full>
           Staff dashboard
         </ButtonLink>

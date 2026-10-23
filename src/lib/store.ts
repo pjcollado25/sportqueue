@@ -1,6 +1,7 @@
 import { createDemoState } from "@/lib/defaults";
 import {
   addCourt,
+  addSkillPairs,
   addSport,
   assignCourt,
   callNext,
@@ -21,6 +22,7 @@ import {
   updateCourt,
   updateSport,
 } from "@/lib/domain";
+import type { RankedPlayer } from "@/lib/pairing";
 import type { SportQueueRepository } from "@/lib/repository";
 import { createLocalStorageRepository } from "@/lib/storage";
 import type { AppState, CourtDraft, DomainResult, JoinRequest, SportDraft } from "@/lib/types";
@@ -43,6 +45,7 @@ export interface QueueStore {
   join: (input: JoinRequest) => JoinResult;
   leave: (entryId: string) => string | null;
   staffAdd: (input: JoinRequest) => string | null;
+  addSkillPairs: (sportId: string, players: RankedPlayer[]) => string | null;
   remove: (entryId: string) => string | null;
   skip: (entryId: string) => string | null;
   noShow: (entryId: string) => string | null;
@@ -132,6 +135,11 @@ export function createQueueStore(repository?: SportQueueRepository): QueueStore 
       const current = ensure();
       if (!current.state) return "SportQueue is still opening.";
       return apply(staffAddEntry(current.state, input));
+    },
+    addSkillPairs(sportId, players) {
+      const current = ensure();
+      if (!current.state) return "SportQueue is still opening.";
+      return apply(addSkillPairs(current.state, { sportId, players }));
     },
     remove(entryId) {
       const current = ensure();

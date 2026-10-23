@@ -71,7 +71,7 @@ export function FilterChips({
   label: string;
 }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label={label}>
+    <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
       {options.map((option) => {
         const selected = option.id === value;
         return (
@@ -81,7 +81,7 @@ export function FilterChips({
             aria-pressed={selected}
             onClick={() => onChange(option.id)}
             className={cn(
-              "min-h-11 shrink-0 rounded-full px-4 text-sm font-bold touch-manipulation",
+              "min-h-11 rounded-full px-4 text-sm font-bold touch-manipulation",
               selected ? "bg-pine text-white" : "border border-line bg-white text-pine",
             )}
           >

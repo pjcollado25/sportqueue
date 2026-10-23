@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { pickSkillPairs, type RankedPlayer } from "@/lib/pairing";
 import { courtOccupancy, courtSupportsSport, listWaiting, sportById } from "@/lib/selectors";
 import type {
   AppState,
@@ -118,6 +119,55 @@ export function joinQueue(state: AppState, input: JoinRequest & { ownerToken: st
 
 export function staffAddEntry(state: AppState, input: JoinRequest, now = new Date().toISOString()): DomainResult {
   return addAsStaff(state, input, now);
+}
+
+function queueDisplayName(players: string[]): string {
+  if (players.length === 4) {
+    const match = `${players[0]} & ${players[1]} vs ${players[2]} & ${players[3]}`;
+    if (match.length <= 40) return match;
+  }
+  const pair = `${players[0]} & ${players[1]}`;
+  return pair.length <= 40 ? pair : players[0];
+}
+
+export function addSkillPairs(
+  state: AppState,
+  input: { sportId: string; players: RankedPlayer[] },
+  now = new Date().toISOString(),
+): DomainResult {
+  const sport = sportById(state, input.sportId);
+  if (!sport || !sport.enabled) return fail("Pick a sport that is turned on.");
+  if (!sport.formats.includes("doubles")) return fail("That sport does not offer doubles, so pairs cannot be added.");
+  const picked = pickSkillPairs(input.players);
+  if (!picked.ok) return fail(picked.error);
+
+  const groups: string[][] = [
+    ...picked.pairing.games.map((game) => [
+      game.sideA.players[0],
+      game.sideA.players[1],
+      game.sideB.players[0],
+      game.sideB.players[1],
+    ]),
+    ...(picked.pairing.waitingPair ? [[picked.pairing.waitingPair.players[0], picked.pairing.waitingPair.players[1]]] : []),
+  ];
+  if (groups.length === 0) return fail("Add at least two names so a pair can be made.");
+
+  const start = Date.parse(now);
+  const base = Number.isFinite(start) ? start : Date.now();
+  const entries: QueueEntry[] = groups.map((players, index) => ({
+    id: createId(),
+    sportId: sport.id,
+    format: "doubles",
+    displayName: queueDisplayName(players),
+    players,
+    courtPreferenceId: null,
+    status: "waiting",
+    joinedAt: new Date(base + index).toISOString(),
+    courtId: null,
+    ownerToken: null,
+  }));
+
+  return ok({ ...state, entries: [...state.entries, ...entries] });
 }
 
 function addAsStaff(state: AppState, input: JoinRequest, now: string): DomainResult {

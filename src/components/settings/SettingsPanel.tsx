@@ -40,11 +40,11 @@ export function SettingsPanel() {
 
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-4">
-      <PageHeader title="Settings" description="Venue name, sports, and a backup of this phone." />
+      <PageHeader title="Settings" description="Venue name, sports, and a backup of this browser." />
       <section className="rounded-3xl bg-pine p-4 text-white">
-        <h2 className="text-lg font-extrabold">This phone only</h2>
+        <h2 className="text-lg font-extrabold">This browser only</h2>
         <p className="mt-2 text-sm leading-6 text-lime">
-          SportQueue keeps the queue in this browser. Closing the page does not erase it. Opening SportQueue on another phone starts a separate queue. Nothing is sent to a server, and there is no shared login.
+          SportQueue keeps the queue in this browser. Closing the page does not erase it. Opening SportQueue on another device starts a separate queue. Nothing is sent to a server, and there is no shared login.
         </p>
       </section>
 
@@ -130,9 +130,9 @@ export function SettingsPanel() {
       </section>
 
       <section className="grid gap-3 rounded-3xl bg-white p-4">
-        <h2 className="text-lg font-extrabold text-pine">Backup on this phone</h2>
+        <h2 className="text-lg font-extrabold text-pine">Backup in this browser</h2>
         <p className="text-sm leading-6 text-muted">
-          Export downloads a file. It is not uploaded. Restore replaces the queue, sports, and courts currently saved on this phone.
+          Export downloads a file. It is not uploaded. Restore replaces the queue, sports, and courts currently saved in this browser.
         </p>
         <Button
           full
@@ -163,8 +163,8 @@ export function SettingsPanel() {
               try {
                 const parsed = JSON.parse(await file.text()) as unknown;
                 setConfirm({
-                  title: "Replace this phone's queue?",
-                  body: "The backup will replace players, courts, sports, and history on this phone.",
+                  title: "Replace this browser's queue?",
+                  body: "The backup will replace players, courts, sports, and history in this browser.",
                   confirmLabel: "Restore backup",
                   action: () => report(restore(parsed), "Backup restored."),
                 });
@@ -180,7 +180,7 @@ export function SettingsPanel() {
       <section className="rounded-3xl bg-white p-4">
         <h2 className="text-lg font-extrabold text-pine">Sample data</h2>
         <p className="mt-2 text-sm leading-6 text-muted">
-          Put back the sample venue, players, and courts. This replaces what is currently saved on this phone.
+          Put back the sample venue, players, and courts. This replaces what is currently saved in this browser.
         </p>
         <Button
           variant="danger"
@@ -189,7 +189,7 @@ export function SettingsPanel() {
           onClick={() =>
             setConfirm({
               title: "Reset sample data?",
-              body: "The queue on this phone will be replaced with the sample players and courts.",
+              body: "The queue in this browser will be replaced with the sample players and courts.",
               confirmLabel: "Reset sample data",
               danger: true,
               action: () => {
