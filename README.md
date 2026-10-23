@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SportQueue
 
-## Getting Started
+One queue. Every sport.
 
-First, run the development server:
+SportQueue is a phone-first queue board for recreational courts. Players join a sport, see their place, and staff on the same phone call the next group, assign a court, and finish the game.
+
+## This phone only
+
+The queue is saved in this browser with `localStorage`. It stays after a refresh on that phone. It does **not** sync to another phone, browser, or account. There is no server, database, or login. Staff controls are a local prototype, not secure access control.
+
+## Phone layout
+
+The app is designed for a phone in the hand:
+
+- Large type and buttons
+- A bottom menu: Home, Join, Queue, Courts, and More
+- More opens Match history, Settings, and the Staff dashboard
+- Wider screens show the same sections in a side menu
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open the local address Next.js prints. On a phone, use the same Wi-Fi and your computer's address, or resize the browser to a narrow width.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Other commands:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run test:e2e
+npm run build
+```
 
-## Learn More
+`npm run test` runs unit and component tests. `npm run test:e2e` runs Playwright on a phone-sized browser and a desktop browser. Install Playwright browsers once with `npx playwright install chromium` if that command asks for them.
 
-To learn more about Next.js, take a look at the following resources:
+## What you can do
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Players can pick a sport, choose singles, doubles, or team play when that sport allows it, enter a name, optionally add teammates, pick a court preference, and join. They can see their place and leave while they are waiting or have been called. They can only leave a spot joined on that phone.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Staff on that phone can call the next group, skip, mark a no-show, assign a court, start, finish, send a group back, add someone manually, and remove an entry. Settings covers the venue name, sports, export, restore, and sample data. Courts shows what is open, reserved, or in play.
 
-## Deploy on Vercel
+Built-in sports are pickleball, tennis, badminton, basketball, volleyball, table tennis, and other. Venues can edit them or add their own. A sport with people still waiting or playing cannot be removed.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Code map
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/lib/domain.ts` holds queue rules.
+- `src/lib/repository.ts` is the storage boundary. Screens do not call `localStorage` directly.
+- `src/lib/storage.ts` is the browser implementation.
+- `src/lib/store.ts` connects the screens to those rules.
+
+A later remote backend can replace the repository without rewriting the screens. That backend is not included.
